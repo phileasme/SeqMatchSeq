@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
-from nn.DMax import DMax
+from models.nn.DMax import DMax
 import util.loadFiles as tr
 from util.utils import MAP, MRR
 
