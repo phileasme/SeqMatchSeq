@@ -14,7 +14,7 @@ class CompAggWikiQA(nn.Module):
 
         self.mem_dim = args.mem_dim
         self.cov_dim = args.cov_dim
-        self.optim_state = {"learningRate": args.learning_rate}
+        self.optim_state = { "learningRate": args.learning_rate }
         self.batch_size = args.batch_size
         self.emb_dim = args.wvecDim
         self.task = args.task
@@ -60,12 +60,13 @@ class CompAggWikiQA(nn.Module):
         out = i.mul(u)
         return out
 
-    def attend(self, question, answer):
+    def attend(self, question, answer, withDropout=False):
         """
             Attention step, applying an Attention Layer.
         """
         question_projection = question
-        # question_projection_dropped = nn.Dropout(self.dropoutP).forward(question_projection)
+        if withDropout:
+            question_projection = nn.Dropout(self.dropoutP).forward(question_projection)
         attention = torch.mm(question_projection, answer.t())
         question_weights = F.softmax(attention.transpose(0, 1), dim=0)
         context_vector = torch.mm(question_weights, question_projection)
@@ -83,7 +84,6 @@ class CompAggWikiQA(nn.Module):
         """
             Aggregate step, Computes the convolutions along with dynamic max pooling.
         """
-
         conv = [None] * len(self.window_sizes)
         pool = [None] * len(self.window_sizes)
         input_view = input.view(1, input.size()[0], input.size()[1]).transpose(1, 2)
@@ -101,7 +101,7 @@ class CompAggWikiQA(nn.Module):
         """
             Context Encoding, applying the "projection layers" on both embeddings.
         """
-        return (self.projection_layer(q), self.projection_layer(a))
+        return self.projection_layer(q), self.projection_layer(a)
 
     def main_flow(self, data_q, data_as):
         """
@@ -118,7 +118,7 @@ class CompAggWikiQA(nn.Module):
 
         data_as_word = torch.cat(data_as, 0)
         inputs_a_emb = self.emb_vecs.forward(
-            Variable(data_as_word.type(torch.LongTensor), requires_grad=False))  # TODO: why LongTensor would convert to Float
+            Variable(data_as_word.type(torch.LongTensor), requires_grad=False))
         inputs_q_emb = self.emb_vecs.forward(Variable(data_q, requires_grad=False))
 
         projs_q_emb, projs_a_emb = self.context_encoding(inputs_q_emb, inputs_a_emb)
@@ -137,10 +137,16 @@ class CompAggWikiQA(nn.Module):
         return soft_output
 
     def forward(self, data_q, data_as):
+        """
+            Train model, Computation performed at every call.
+        """
         output = self.main_flow(data_q, data_as)
         return output
 
     def predict(self, data_raw):
+        """
+            Prediction, Validation/Testing
+        """
         data_q, data_as, label = data_raw
         output = self.main_flow(data_q, data_as)
 
@@ -149,7 +155,9 @@ class CompAggWikiQA(nn.Module):
         return map, mrr
 
     def predict_dataset(self, dataset):
-
+        """
+            Prediction on specified dataset (WikiQA: dev, prod, etc.)
+        """
         self.emb_vecs.eval()
         res = [0., 0.]
         dataset_size = len(dataset)
@@ -162,4 +170,3 @@ class CompAggWikiQA(nn.Module):
         res[1] = res[1] / dataset_size
 
         return res
-

@@ -5,7 +5,7 @@ import torch
 from tqdm import tqdm
 import util.loadFiles as tr
 from torch.autograd import Variable
-from wikiqa.compAggWikiqa import CompAggWikiQA
+from models.compAggWikiqa import CompAggWikiQA
 from util import utils
 
 parser = argparse.ArgumentParser()
@@ -23,7 +23,7 @@ parser.add_argument('--num_classes', type=int, default=3, help='number of classe
 
 parser.add_argument('--wvecDim', type=int, default=300, help='embedding dimension')
 parser.add_argument('--mem_dim', type=int, default=150, help='state dimension')
-# parser.add_argument('--att_dim', type=int, default=150, help='attenion dimension') # The original author doesn't really use this argument
+
 parser.add_argument('--cov_dim', type=int, default=150, help='conv dimension')
 parser.add_argument('--window_sizes', type=list, default=[1, 2, 3, 4, 5], help='window sizes')
 parser.add_argument('--window_large', type=int, default=5, help='largest window size')
