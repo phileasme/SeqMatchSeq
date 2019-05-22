@@ -2,9 +2,11 @@
 import argparse
 
 import torch
-
+from tqdm import tqdm
 import util.loadFiles as tr
-from wikiqa.compAggWikiqa import compAggWikiqa, train
+from torch.autograd import Variable
+from wikiqa.compAggWikiqa import CompAggWikiQA
+from util import utils
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--batch_size', type=int, default=10, help='number of sequences to train on in parallel')
@@ -54,18 +56,51 @@ print("Size of training data: %s" % len(train_dataset))
 dev_dataset = tr.loadData('dev', opt.task)
 print("Size of dev data: %s" % len(dev_dataset))
 
-model = compAggWikiqa(opt)
 
-for i in range(opt.max_epochs):
-    train(model, train_dataset)
-    model.optim_state['learningRate'] = model.optim_state['learningRate'] * opt.lr_decay
+def train(model: compAggWikiqa, dataset: list):
+    model.emb_vecs.train()
 
-    recordDev = model.predict_dataset(dev_dataset)
-    model.save('./trainedmodel/', opt, [recordDev], i)
-    # if i == opt.max_epochs then
-    #     model.params:copy( model.best_params )
-    #     recordDev = model:predict_dataset(dev_dataset)
-    #     if opt.task == 'snli' or opt.task == 'wikiqa' then recordTest   = model:predict_dataset(test_dataset) end
-    #     recordTrain  = model:predict_dataset(train_dataset)
-    #     model.save('../trainedmodel/', opt, {recordDev, recordTest, recordTrain}, i)
+    dataset_size = len(dataset)
 
+    indices = [667] + [x for x in range(667)] + [x for x in range(668, 873)]
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+    for i in tqdm(range(0, dataset_size, model.batch_size)):
+        batch_size = min(model.batch_size, dataset_size - i)
+
+        loss = 0.
+        for j in range(0, batch_size):
+            idx = indices[i + j]
+            data_raw = dataset[idx]
+            data_q, data_as, label = data_raw
+            label = Variable(label, requires_grad=False)
+            soft_output = model(data_q, data_as)
+
+            example_loss = model.criterion(soft_output, label)
+
+            loss += example_loss
+        loss = loss / batch_size
+
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+
+def main():
+    model = CompAggWikiQA(opt)
+    for i in range(opt.max_epochs):
+        train(model, train_dataset)
+        model.optim_state['learningRate'] = model.optim_state['learningRate'] * opt.lr_decay
+
+        recordDev = model.predict_dataset(dev_dataset)
+
+        utils.save('./trainedmodel/', opt, [recordDev], i)
+        # if i == opt.max_epochs then
+        #     model.params:copy( model.best_params )
+        #     recordDev = model:predict_dataset(dev_dataset)
+        #     if opt.task == 'snli' or opt.task == 'wikiqa' then recordTest   = model:predict_dataset(test_dataset) end
+        #     recordTrain  = model:predict_dataset(train_dataset)
+        #     model.save('../trainedmodel/', opt, {recordDev, recordTest, recordTrain}, i)
+
+if __name__ == "__main__":
+    main()

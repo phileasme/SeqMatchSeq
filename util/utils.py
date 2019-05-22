@@ -1,5 +1,4 @@
-import pdb
-
+import os
 import torch
 
 
@@ -40,3 +39,28 @@ def MRR(ground_label: torch.FloatTensor, predict_label: torch.FloatTensor):
 
     assert (mrr != 0)
     return mrr
+
+
+def save(path, config, result, epoch):
+    assert os.path.isdir(path)
+    recPath = path + config.task + str(config.expIdx) + 'Record.txt'
+
+    file = open(recPath, 'a')
+    if epoch == 0:
+        for name, val in vars(config).items():
+            file.write(name + '\t' + str(val) + '\n')
+
+    file.write(config.task + ': ' + str(epoch) + ': ')
+    for i, vals in enumerate(result):
+        for _, val in enumerate(vals):
+            file.write('%s, ' % val)
+
+        if i == 0:
+            print("Dev: MAP: %s, MRR: %s" % (vals[0], vals[1]))
+        elif i == 1:
+            print("Test: MAP: %s, MRR: %s" % (vals[0], vals[1]))
+        else:
+            print("Train: MAP: %s, MRR: %s" % (vals[0], vals[1]))
+
+    file.write('\n')
+    file.close()
